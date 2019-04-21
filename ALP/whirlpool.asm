@@ -7,9 +7,7 @@ RINSE_CYCLE MACRO DURATION
 	MOV AL, 00000001b 
 	OUT PORTB, AL ; turn on agitator
 	MOV CX, DURATION
-	X1: 
-		CALL DELAY
-		LOOP X1
+	CALL DELAY
 	CALL RINSED
 ENDM
 
@@ -18,9 +16,7 @@ WASH_CYCLE MACRO DURATION
 	MOV AL, 00000001b 
 	OUT PORTB, AL ; turn on agitator
 	MOV CX, DURATION
-	X2:
-		CALL DELAY
-		LOOP X2
+	CALL DELAY
 	CALL WASHED
 ENDM
 
@@ -29,9 +25,7 @@ DRY_CYCLE MACRO DURATION
 	MOV AL, 00000010b
 	OUT PORTB, AL ; turn on revolving tub
 	MOV CX, DURATION
-	X3:
-		CALL DELAY
-		LOOP X3
+	CALL DELAY
 	CALL DRIED
 ENDM
 
@@ -40,6 +34,7 @@ RINSE_WASH MACRO RINSE_TIME, WASH_TIME
 	RINSE_CYCLE RINSE_TIME ; RINSE cycle 
 	CALL WATER_LEVEL_MIN
 	CALL WATER_LEVEL_MAX
+	MOV CX, 1
 	CALL DELAY ; user enters detergent during this delay period
 	CALL RESUMED
 	CALL DEBOUNCE_DELAY
@@ -156,16 +151,19 @@ ENDM
 
 ; --- PROCEDURES --- ;
 
-; introduce delay in the system
-DELAY PROC NEAR USES BX, CX
-	MOV BX, 0F0h
+; introduce delay in the system- DURATION held in CX register
+DELAY PROC NEAR USES BX, DX
+	L0:
+		MOV BX, 0F0h
 	L1:
-		MOV CX, 0FFFFh
+		MOV DX, 0FFFFh
 	L2:
 		NOP
-		LOOP L2
+		DEC DX
+		JNZ L2
 		DEC BX
 		JNZ L1
+	LOOP L0
 	RET
 DELAY ENDP
 
@@ -213,6 +211,7 @@ RINSED PROC NEAR
 	OUT PORTB, AL ; turn off agitator
 	MOV AL, 00010000b 
 	OUT PORTB, AL 
+	MOV CX, 1
 	CALL DELAY ; turn on buzzer for 1 minute
 	MOV AL, 00h 
 	OUT PORTB, AL ; turn off buzzer
@@ -225,6 +224,7 @@ WASHED PROC NEAR
 	OUT PORTB, AL ; turn off agitator
 	MOV AL, 00001000b
 	OUT PORTB, AL
+	MOV CX, 1
 	CALL DELAY ; turn on buzzer for 1 minute
 	MOV AL, 00h
 	OUT PORTB, AL
@@ -237,6 +237,7 @@ DRIED PROC NEAR
 	OUT PORTB, AL ;turn off revolving tub
 	MOV AL, 00000100b
 	OUT PORTB, AL
+	MOV CX, 1
 	CALL DELAY ; turn on buzzer for 1 minute
 	MOV AL, 00h
 	OUT PORTB, AL
