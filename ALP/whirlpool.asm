@@ -1,9 +1,11 @@
 .model tiny
 
+; --- MACROS --- ;
+
 ; macro for rinse cycle 
 RINSE_CYCLE MACRO DURATION
-	MOV AL, 00000001b
-	OUT PORTB, AL
+	MOV AL, 00000001b 
+	OUT PORTB, AL ; turn on agitator
 	MOV CX, DURATION
 	X1: 
 		CALL DELAY
@@ -11,11 +13,10 @@ RINSE_CYCLE MACRO DURATION
 	CALL RINSED
 ENDM
 
-
 ; macro for wash cycle 
 WASH_CYCLE MACRO DURATION
-	MOV AL, 00000001b
-	OUT PORTB, AL
+	MOV AL, 00000001b 
+	OUT PORTB, AL ; turn on agitator
 	MOV CX, DURATION
 	X2:
 		CALL DELAY
@@ -23,11 +24,10 @@ WASH_CYCLE MACRO DURATION
 	CALL WASHED
 ENDM
 
-
 ; macro for dry cycle
 DRY_CYCLE MACRO DURATION
 	MOV AL, 00000010b
-	OUT PORTB, AL
+	OUT PORTB, AL ; turn on revolving tub
 	MOV CX, DURATION
 	X3:
 		CALL DELAY
@@ -35,18 +35,46 @@ DRY_CYCLE MACRO DURATION
 	CALL DRIED
 ENDM
 
+; macro for consective rinse and wash cycles
+RINSE_WASH MACRO RINSE_TIME, WASH_TIME
+	RINSE_CYCLE RINSE_TIME ; RINSE cycle 
+	CALL WATER_LEVEL_MIN
+	CALL WATER_LEVEL_MAX
+	CALL DELAY ; user enters detergent during this delay period
+	CALL RESUMED
+	CALL DEBOUNCE_DELAY
+
+	WASH_CYCLE WASH_TIME ; WASH cycle 
+	CALL WATER_LEVEL_MIN
+	CALL WATER_LEVEL_MAX
+	CALL RESUMED
+	CALL DEBOUNCE_DELAY 
+ENDM
+
+; macro for consecutive rinse and dry cycles
+RINSE_DRY MACRO RINSE_TIME, DRY_TIME
+	RINSE_CYCLE RINSE_TIME ; RINSE cycle 
+	CALL WATER_LEVEL_MIN
+	CALL RESUMED
+	CALL DEBOUNCE_DELAY
+
+	DRY_CYCLE DRY_TIME ; DRY cycle 
+ENDM
+
+; --- CODE --- ;
+
 .data
 	PORTA EQU 00h
 	PORTB EQU 02h
 	PORTC EQU 04h
-	CREG_8255 EQU 06h
+	CREG EQU 06h
 	MODE DB 00h
 
 .code
 .startup
 	; initializing 8255 using control word reg.
 	MOV AL, 10010000b
-	OUT CREG_8255, AL
+	OUT CREG, AL
 
 	; reset port b
 	MOV AL, 00h
@@ -54,7 +82,7 @@ ENDM
 
 	; check if start button is ON(Active Low)
 	START: 
-		MOV LOAD, 00h
+		MOV MODE, 00h
 		IN AL, PORTA
 		CMP AL, 11111110b
 		JNZ START
@@ -104,106 +132,29 @@ ENDM
 		JMP HEAVY
 
 	LIGHT:
-		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
-
-		RINSE_CYCLE 2 ; RINSE cycle for 2 minutes
-		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
-		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
-		CALL DEBOUNCE_DELAY 
-		CALL DELAY ; user enters detergent during this delay period
-		CALL RESUMED ; check if resume button is pressed
-		CALL DEBOUNCE_DELAY
-
-		WASH_CYCLE 3 ; WASH cycle for 3 minutes
-		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
-		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
-		CALL DEBOUNCE_DELAY 
-		CALL DELAY ; user enters detergent during this delay period
-		CALL RESUMED ; check if resume button is pressed
-		CALL DEBOUNCE_DELAY
-
-		RINSE_CYCLE 2 ; RINSE cycle for 2 minutes
-		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
-		CALL RESUMED ; check if resume button is pressed
-		CALL DEBOUNCE_DELAY
-
-		DRY_CYCLE 2 ; DRY cycle for 2 minutes
+		CALL WATER_LEVEL_MAX
+		RINSE_WASH 2, 3
+		RINSE_DRY 2, 2
 		JMP COMPLETE
 
 	MEDIUM:
-		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
-
-		RINSE_CYCLE 3 ; RINSE cycle for 3 minutes
-		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
-		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
-		CALL DEBOUNCE_DELAY 
-		CALL DELAY ; user enters detergent during this delay period
-		CALL RESUMED ; check if resume button is pressed
-		CALL DEBOUNCE_DELAY
-
-		WASH_CYCLE 5 ; WASH cycle for 5 minutes
-		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
-		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
-		CALL DEBOUNCE_DELAY 
-		CALL DELAY ; user enters detergent during this delay period
-		CALL RESUMED ; check if resume button is pressed
-		CALL DEBOUNCE_DELAY
-
-		RINSE_CYCLE 3 ; RINSE cycle for 3 minutes
-		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
-		CALL RESUMED ; check if resume button is pressed
-		CALL DEBOUNCE_DELAY
-
-		DRY_CYCLE 4 ; DRY cycle for 4 minutes
+		CALL WATER_LEVEL_MAX
+		RINSE_WASH 3, 5
+		RINSE_DRY 3, 4
 		JMP COMPLETE
 
 	HEAVY:
-		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
-
-		RINSE_CYCLE 3 ; RINSE cycle for 3 minutes
-		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
-		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
-		CALL DEBOUNCE_DELAY 
-		CALL DELAY ; user enters detergent during this delay period
-		CALL RESUMED ; check if resume button is pressed
-		CALL DEBOUNCE_DELAY
-
-		WASH_CYCLE 5 ; WASH cycle for 5 minutes
-		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
-		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
-		CALL DEBOUNCE_DELAY 
-		CALL DELAY ; user enters detergent during this delay period
-		CALL RESUMED ; check if resume button is pressed
-		CALL DEBOUNCE_DELAY
-
-		RINSE_CYCLE 3 ; RINSE cycle for 3 minutes
-		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
-		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
-		CALL DEBOUNCE_DELAY 
-		CALL DELAY ; user enters detergent during this delay period
-		CALL RESUMED ; check if resume button is pressed
-		CALL DEBOUNCE_DELAY
-
-		WASH_CYCLE 5 ; WASH cycle for 5 minutes
-		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
-		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
-		CALL DEBOUNCE_DELAY 
-		CALL DELAY ; user enters detergent during this delay period
-		CALL RESUMED ; check if resume button is pressed
-		CALL DEBOUNCE_DELAY
-
-		RINSE_CYCLE 3 ; RINSE cycle for 3 minutes
-		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
-		CALL RESUMED ; check if resume button is pressed
-		CALL DEBOUNCE_DELAY
-
-		DRY_CYCLE 4 ; DRY cycle for 4 minutes
+		CALL WATER_LEVEL_MAX
+		RINSE_WASH 3, 5
+		RINSE_WASH 3, 5
+		RINSE_DRY 3, 4
 		JMP COMPLETE
 
 	COMPLETE:
 
 .exit
 
+; --- PROCEDURES --- ;
 
 ; introduce delay in the system
 DELAY PROC NEAR USES BX, CX
@@ -218,7 +169,6 @@ DELAY PROC NEAR USES BX, CX
 	RET
 DELAY ENDP
 
-
 ; ensure all buttons are unpressed
 DEBOUNCE_DELAY PROC NEAR
 	DEBOUNCE:
@@ -229,26 +179,23 @@ DEBOUNCE_DELAY PROC NEAR
 	RET
 DEBOUNCE_DELAY ENDP
 
-
 ; check if water level is maximum and door is closed
-WATER_LVL_MAX PROC NEAR 
+WATER_LEVEL_MAX PROC NEAR 
 	MAX:
 		IN AL, PORTA
 		CMP AL, 11001111b
 		JNE MAX
 	RET
-WATER_LVL_MAX ENDP
-
+WATER_LEVEL_MAX ENDP
 
 ; check if water level is minimum and door is closed
-WATER_LVL_MIN PROC NEAR 
+WATER_LEVEL_MIN PROC NEAR 
 	MIN:
 		IN AL, PORTA
 		CMP AL, 10101111b
 		JNE MIN
 	RET
-WATER_LVL_MIN ENDP
-
+WATER_LEVEL_MIN ENDP
 
 ; check if resume button is pressed
 RESUMED PROC NEAR
@@ -259,7 +206,6 @@ RESUMED PROC NEAR
         JNE RESUMEOFF
     RET
 RESUMED ENDP
-
 
 ; rinse cycle completed
 RINSED PROC NEAR
@@ -273,7 +219,6 @@ RINSED PROC NEAR
 	RET
 RINSED ENDP
 
-
 ; wash cycle completed
 WASHED PROC NEAR
 	MOV AL, 00h
@@ -285,7 +230,6 @@ WASHED PROC NEAR
 	OUT PORTB, AL
 	RET
 WASHED ENDP
-
 
 ; dry cycle completed
 DRIED PROC NEAR
