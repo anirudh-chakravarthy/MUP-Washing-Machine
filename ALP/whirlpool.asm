@@ -2,7 +2,6 @@
 
 ; macro for rinse cycle 
 RINSE_CYCLE MACRO DURATION
-	CALL WATER_LVL_MAX
 	MOV AL, 00000001b
 	OUT PORTB, AL
 	MOV CX, DURATION
@@ -104,6 +103,7 @@ ENDM
 		JMP HEAVY
 
 	LIGHT:
+		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
 		RINSE_CYCLE 2 ; RINSE cycle for 2 minutes
 		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
 		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
@@ -122,13 +122,54 @@ ENDM
 
 		RINSE_CYCLE 2 ; RINSE cycle for 2 minutes
 		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
-		CALL RESUMED
+		CALL RESUMED ; check if resume button is pressed
 		CALL DEBOUNCE_DELAY
 
 		DRY_CYCLE 2 ; DRY cycle for 2 minutes
+		JMP COMPLETE
 
+	MEDIUM:
+		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
+		RINSE_CYCLE 3 ; RINSE cycle for 3 minutes
+		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
+		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
+		CALL DEBOUNCE_DELAY 
+		CALL DELAY ; user enters detergent during this delay period
+		CALL RESUMED ; check if resume button is pressed
+		CALL DEBOUNCE_DELAY
+
+		WASH_CYCLE 5 ; WASH cycle for 5 minutes
+		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
+		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
+		CALL DEBOUNCE_DELAY 
+		CALL DELAY ; user enters detergent during this delay period
+		CALL RESUMED ; check if resume button is pressed
+		CALL DEBOUNCE_DELAY
+
+		RINSE_CYCLE 3 ; RINSE cycle for 3 minutes
+		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
+		CALL RESUMED ; check if resume button is pressed
+		CALL DEBOUNCE_DELAY
+
+		DRY_CYCLE 4 ; DRY cycle for 4 minutes
+		JMP COMPLETE
+
+	HEAVY:
+
+	COMPLETE:
 
 .exit
+
+; ensure all buttons are unpressed
+DEBOUNCE_DELAY PROC NEAR
+	DEBOUNCE:
+		IN AL, PORTA
+		OR AL, 11110000b
+		CMP AL, 11111111b
+		JNE DEBOUNCE
+	RET
+DEBOUNCE_DELAY ENDP
+
 
 ; check if water level is maximum and door is closed
 WATER_LVL_MAX PROC NEAR 
@@ -150,13 +191,24 @@ WATER_LVL_MIN PROC NEAR
 WATER_LVL_MIN ENDP
 
 
+; check if resume button is pressed
+RESUMED PROC NEAR
+	RESUMEOFF:
+		IN AL, PORTA
+		OR AL,11100111B
+        CMP AL,11100111B
+        JNE RESUMEOFF
+    RET
+RESUMED ENDP
+
+
 ; rinse cycle completed
 RINSED PROC NEAR
 	MOV AL, 00h
 	OUT PORTB, AL ; turn off agitator
 	MOV AL, 00010000b 
-	OUT PORTB, AL ; turn on buzzer for 1 minute
-	CALL DELAY
+	OUT PORTB, AL 
+	CALL DELAY ; turn on buzzer for 1 minute
 	MOV AL, 00h 
 	OUT PORTB, AL ; turn off buzzer
 	RET
