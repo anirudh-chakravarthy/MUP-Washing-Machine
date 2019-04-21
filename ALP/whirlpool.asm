@@ -152,7 +152,7 @@ ENDM
 ; --- PROCEDURES --- ;
 
 ; introduce delay in the system- DURATION held in CX register
-DELAY PROC NEAR USES BX, DX
+DELAY PROC NEAR USES BX DX
 	L0:
 		MOV BX, 0F0h
 	L1:
