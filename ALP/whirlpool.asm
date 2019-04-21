@@ -23,6 +23,7 @@ WASH_CYCLE MACRO DURATION
 	CALL WASHED
 ENDM
 
+
 ; macro for dry cycle
 DRY_CYCLE MACRO DURATION
 	MOV AL, 00000010b
@@ -104,6 +105,7 @@ ENDM
 
 	LIGHT:
 		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
+
 		RINSE_CYCLE 2 ; RINSE cycle for 2 minutes
 		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
 		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
@@ -130,6 +132,7 @@ ENDM
 
 	MEDIUM:
 		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
+
 		RINSE_CYCLE 3 ; RINSE cycle for 3 minutes
 		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
 		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
@@ -155,10 +158,66 @@ ENDM
 		JMP COMPLETE
 
 	HEAVY:
+		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
+
+		RINSE_CYCLE 3 ; RINSE cycle for 3 minutes
+		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
+		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
+		CALL DEBOUNCE_DELAY 
+		CALL DELAY ; user enters detergent during this delay period
+		CALL RESUMED ; check if resume button is pressed
+		CALL DEBOUNCE_DELAY
+
+		WASH_CYCLE 5 ; WASH cycle for 5 minutes
+		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
+		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
+		CALL DEBOUNCE_DELAY 
+		CALL DELAY ; user enters detergent during this delay period
+		CALL RESUMED ; check if resume button is pressed
+		CALL DEBOUNCE_DELAY
+
+		RINSE_CYCLE 3 ; RINSE cycle for 3 minutes
+		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
+		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
+		CALL DEBOUNCE_DELAY 
+		CALL DELAY ; user enters detergent during this delay period
+		CALL RESUMED ; check if resume button is pressed
+		CALL DEBOUNCE_DELAY
+
+		WASH_CYCLE 5 ; WASH cycle for 5 minutes
+		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
+		CALL WATER_LVL_MAX ; check if water level is maximum and door is closed
+		CALL DEBOUNCE_DELAY 
+		CALL DELAY ; user enters detergent during this delay period
+		CALL RESUMED ; check if resume button is pressed
+		CALL DEBOUNCE_DELAY
+
+		RINSE_CYCLE 3 ; RINSE cycle for 3 minutes
+		CALL WATER_LVL_MIN ; check if water level is minimum and door is closed
+		CALL RESUMED ; check if resume button is pressed
+		CALL DEBOUNCE_DELAY
+
+		DRY_CYCLE 4 ; DRY cycle for 4 minutes
+		JMP COMPLETE
 
 	COMPLETE:
 
 .exit
+
+
+; introduce delay in the system
+DELAY PROC NEAR USES BX, CX
+	MOV BX, 0F0h
+	L1:
+		MOV CX, 0FFFFh
+	L2:
+		NOP
+		LOOP L2
+		DEC BX
+		JNZ L1
+	RET
+DELAY ENDP
+
 
 ; ensure all buttons are unpressed
 DEBOUNCE_DELAY PROC NEAR
