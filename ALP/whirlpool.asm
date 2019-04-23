@@ -8,7 +8,7 @@ RINSE_CYCLE MACRO DURATION
 	OUT PORTB, AL ; turn on agitator
 	MOV CX, DURATION
 	CALL DELAY
-	BUZZER 1
+	CALL RINSED
 ENDM
 
 ; macro for wash cycle 
@@ -17,7 +17,7 @@ WASH_CYCLE MACRO DURATION
 	OUT PORTB, AL ; turn on agitator
 	MOV CX, DURATION
 	CALL DELAY
-	BUZZER 2
+	CALL WASHED
 ENDM
 
 ; macro for dry cycle
@@ -26,7 +26,7 @@ DRY_CYCLE MACRO DURATION
 	OUT PORTB, AL ; turn on revolving tub
 	MOV CX, DURATION
 	CALL DELAY
-	BUZZER 3
+	CALL DRIED
 ENDM
 
 ; macro for consective rinse and wash cycles
@@ -61,31 +61,13 @@ RINSE_DRY MACRO RINSE_TIME, DRY_TIME
 ENDM
 
 BUZZER MACRO BUZZER_NUM
-	CMP BUZZER NUM, 1
-	JZ RINSED
-	CMP BUZZER_NUM, 2
-	JZ WASHED
-	JMP DRIED
-
-	RINSED:
-		MOV AL, 00010000b
-		JMP BUZZ
-
-	WASHED:
-		MOV AL, 00001000b
-		JMP BUZZ
-
-	DRIED:
-		MOV AL, 00000100b
-		JMP BUZZ
-
-	BUZZ:
-		OUT PORTB, AL 
-		MOV CX, 1
-		CALL DELAY ; turn on buzzer for 1 minute
-		MOV AL, 00h 
-		OUT PORTB, AL ; turn off buzzer
-ENDM
+	MOV AL, BUZZER_NUM
+	OUT PORTB, AL 
+	MOV CX, 1
+	CALL DELAY ; turn on buzzer for 1 minute
+	MOV AL, 00h 
+	OUT PORTB, AL ; turn off buzzer
+ENDM	
 
 ; --- CODE --- ;
 
@@ -106,7 +88,8 @@ ENDM
 	MOV SI, OFFSET [STOP]
 	MOV ES:[BX], SI ; IP address
 	ADD BX, 2
-	MOV ES:[BX], CS ; CS address
+	MOV AX, 0000h
+	MOV ES:[BX], AX ; CS address
 
 	; initializing 8255 using control word reg.
 	MOV AL, 10010000b
@@ -179,7 +162,7 @@ ENDM
 		MOV AL, 00h
 		OUT PORTB, AL
 		OUT PORTC, AL
-		POP IP
+		POP AX ; pop previous IP address location
 		PUSH START_IP ; moves instruction address to INITIALIZE label
 		IRET
 
@@ -187,7 +170,7 @@ ENDM
 
 ; --- PROCEDURES --- ;
 
-; introduce delay in the system- DURATION held in CX register
+; introduce delay in the system - DURATION held in CX register
 DELAY PROC NEAR USES BX DX
 	L0:
 		MOV BX, 0001h
@@ -240,5 +223,29 @@ RESUMED PROC NEAR
         JNE RESUMEOFF
     RET
 RESUMED ENDP
+
+; rinse cycle completed
+RINSED PROC NEAR
+	MOV AL, 00h
+	OUT PORTB, AL ; turn off agitator
+	BUZZER 00010000b 
+	RET
+RINSED ENDP
+
+; wash cycle completed
+WASHED PROC NEAR
+	MOV AL, 00h
+	OUT PORTB, AL ; turn off agitator
+	BUZZER 00001000b
+	RET
+WASHED ENDP
+
+; dry cycle completed
+DRIED PROC NEAR
+	MOV AL, 00h
+	OUT PORTB, AL ;turn off revolving tub
+	BUZZER 00000100b
+	RET
+DRIED ENDP
 
 END
