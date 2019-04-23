@@ -89,6 +89,7 @@ ENDM
 
 	; check for number of load presses
 	LOAD:
+		OUT PORTC, MODE ; display mode number on 7 seg display
 		IN AL, PORTA
 		CMP AL, 11101111b ; check if door is closed
 		JZ DOOR_CLOSED
@@ -96,36 +97,31 @@ ENDM
 		JNZ LOAD
 		INC BYTE PTR MODE
 		CALL DEBOUNCE_DELAY
+		
+		CMP MODE, 03h
+		JLE LOAD
+		MOV MODE, 00h ; reset to 0 if 4 presses
 		JMP LOAD
 
 	; door is now closed
 	DOOR_CLOSED:
 		MOV AH, MODE
-		CMP AH, 00h ; should have greater than 0 presses
-		JZ LOAD
-		CMP AH, 03h ; should have less than 3 presses
-		JLE MODE1
-		MOV MODE, 00h
-		JMP LOAD
+		CMP AH, 00h
+		JE START ; reset the machine if 0 load presses
+		JMP MODE1
 
 	; valid mode has been entered
 	MODE1:
 		CMP MODE, 01h
 		JNE MODE2
-		MOV AL, 01h
-		OUT PORTC, AL ; display mode number on 7 seg display
 		JMP LIGHT
 
 	MODE2:
 		CMP MODE, 02h
 		JNE MODE3
-		MOV AL, 02h
-		OUT PORTC, AL ; display mode number on 7 seg display
 		JMP MEDIUM
 
 	MODE3:
-		MOV AL, 03h
-		OUT PORTC, AL ; display mode number on 7 seg display
 		JMP HEAVY
 
 	LIGHT:
@@ -147,6 +143,7 @@ ENDM
 		JMP COMPLETE
 
 	COMPLETE:
+		JMP START
 
 .exit
 
