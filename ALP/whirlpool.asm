@@ -8,7 +8,7 @@ RINSE_CYCLE MACRO DURATION
 	OUT PORTB, AL ; turn on agitator
 	MOV CX, DURATION
 	CALL DELAY
-	CALL RINSED
+	BUZZER 1
 ENDM
 
 ; macro for wash cycle 
@@ -17,7 +17,7 @@ WASH_CYCLE MACRO DURATION
 	OUT PORTB, AL ; turn on agitator
 	MOV CX, DURATION
 	CALL DELAY
-	CALL WASHED
+	BUZZER 2
 ENDM
 
 ; macro for dry cycle
@@ -26,13 +26,15 @@ DRY_CYCLE MACRO DURATION
 	OUT PORTB, AL ; turn on revolving tub
 	MOV CX, DURATION
 	CALL DELAY
-	CALL DRIED
+	BUZZER 3
 ENDM
 
 ; macro for consective rinse and wash cycles
 RINSE_WASH MACRO RINSE_TIME, WASH_TIME
 	CALL WATER_LEVEL_MIN
 	CALL WATER_LEVEL_MAX
+	CALL RESUMED
+	CALL DEBOUNCE_DELAY
 	RINSE_CYCLE RINSE_TIME ; RINSE cycle 
 
 	CALL WATER_LEVEL_MIN
@@ -58,6 +60,33 @@ RINSE_DRY MACRO RINSE_TIME, DRY_TIME
 	DRY_CYCLE DRY_TIME ; DRY cycle 
 ENDM
 
+BUZZER MACRO BUZZER_NUM
+	CMP BUZZER NUM, 1
+	JZ RINSED
+	CMP BUZZER_NUM, 2
+	JZ WASHED
+	JMP DRIED
+
+	RINSED:
+		MOV AL, 00010000b
+		JMP BUZZ
+
+	WASHED:
+		MOV AL, 00001000b
+		JMP BUZZ
+
+	DRIED:
+		MOV AL, 00000100b
+		JMP BUZZ
+
+	BUZZ:
+		OUT PORTB, AL 
+		MOV CX, 1
+		CALL DELAY ; turn on buzzer for 1 minute
+		MOV AL, 00h 
+		OUT PORTB, AL ; turn off buzzer
+ENDM
+
 ; --- CODE --- ;
 
 .data
@@ -66,16 +95,28 @@ ENDM
 	PORTC EQU 04h
 	CREG EQU 06h
 	MODE DB 00h
+	START_IP DW ?
 
 .code
 .startup
+	; storing appropriate CS and IP values for interrupt handling
+	MOV AX, 0
+	MOV ES, AX
+	MOV BX, 0008h ; address for NMI
+	MOV SI, OFFSET [STOP]
+	MOV ES:[BX], SI ; IP address
+	ADD BX, 2
+	MOV ES:[BX], CS ; CS address
+
 	; initializing 8255 using control word reg.
 	MOV AL, 10010000b
 	OUT CREG, AL
 
-	; reset port b
-	MOV AL, 00h
-	OUT PORTB, AL
+	INITIALIZE:
+		MOV DX, OFFSET [INITIALIZE]
+		MOV START_IP, DX		
+		MOV AL, 00h
+		OUT PORTB, AL ; reset port b
 
 	; check if start button is ON(Active Low)
 	START: 
@@ -109,42 +150,38 @@ ENDM
 		MOV AH, MODE
 		CMP AH, 00h
 		JE START ; reset the machine if 0 load presses
-		JMP MODE1
 
-	; valid mode has been entered
-	MODE1:
-		CMP MODE, 01h
-		JNE MODE2
-		JMP LIGHT
-
-	MODE2:
-		CMP MODE, 02h
-		JNE MODE3
-		JMP MEDIUM
-
-	MODE3:
-		JMP HEAVY
+	; jump to the valid mode
+	CMP MODE, 01h
+	JZ LIGHT
+	CMP MODE, 02h
+	JZ MEDIUM
+	JMP HEAVY
 
 	LIGHT:
 		RINSE_WASH 2, 3
 		RINSE_DRY 2, 2
-		JMP COMPLETE
+		JMP START
 
 	MEDIUM:
 		RINSE_WASH 3, 5
 		RINSE_DRY 3, 4
-		JMP COMPLETE
+		JMP START
 
 	HEAVY:
 		RINSE_WASH 3, 5
-		CALL RESUMED
-		CALL DEBOUNCE_DELAY 
 		RINSE_WASH 3, 5
 		RINSE_DRY 3, 4
-		JMP COMPLETE
-
-	COMPLETE:
 		JMP START
+
+	; interrupt service routine for pressing STOP button
+	STOP:
+		MOV AL, 00h
+		OUT PORTB, AL
+		OUT PORTC, AL
+		POP IP
+		PUSH START_IP ; moves instruction address to INITIALIZE label
+		IRET
 
 .exit
 
@@ -194,7 +231,7 @@ WATER_LEVEL_MIN PROC NEAR
 	RET
 WATER_LEVEL_MIN ENDP
 
-; check if resume button is pressed
+; check if resume button is pressed and door is closed
 RESUMED PROC NEAR
 	RESUMEOFF:
 		IN AL, PORTA
@@ -203,44 +240,5 @@ RESUMED PROC NEAR
         JNE RESUMEOFF
     RET
 RESUMED ENDP
-
-; rinse cycle completed
-RINSED PROC NEAR
-	MOV AL, 00h
-	OUT PORTB, AL ; turn off agitator
-	MOV AL, 00010000b 
-	OUT PORTB, AL 
-	MOV CX, 1
-	CALL DELAY ; turn on buzzer for 1 minute
-	MOV AL, 00h 
-	OUT PORTB, AL ; turn off buzzer
-	RET
-RINSED ENDP
-
-; wash cycle completed
-WASHED PROC NEAR
-	MOV AL, 00h
-	OUT PORTB, AL ; turn off agitator
-	MOV AL, 00001000b
-	OUT PORTB, AL
-	MOV CX, 1
-	CALL DELAY ; turn on buzzer for 1 minute
-	MOV AL, 00h
-	OUT PORTB, AL
-	RET
-WASHED ENDP
-
-; dry cycle completed
-DRIED PROC NEAR
-	MOV AL, 00h
-	OUT PORTB, AL ;turn off revolving tub
-	MOV AL, 00000100b
-	OUT PORTB, AL
-	MOV CX, 1
-	CALL DELAY ; turn on buzzer for 1 minute
-	MOV AL, 00h
-	OUT PORTB, AL
-	RET
-DRIED ENDP
 
 END
