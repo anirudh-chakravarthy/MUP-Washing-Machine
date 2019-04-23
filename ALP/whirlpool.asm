@@ -89,7 +89,8 @@ ENDM
 
 	; check for number of load presses
 	LOAD:
-		OUT PORTC, MODE ; display mode number on 7 seg display
+		MOV AL, MODE
+		OUT PORTC, AL ; display mode number on 7 seg display
 		IN AL, PORTA
 		CMP AL, 11101111b ; check if door is closed
 		JZ DOOR_CLOSED
