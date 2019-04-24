@@ -77,7 +77,6 @@ ENDM
 	PORTC EQU 04h
 	CREG EQU 06h
 	MODE DB 00h
-	START_IP DW ?
 
 .code
 .startup
@@ -95,14 +94,10 @@ ENDM
 	MOV AL, 10010000b
 	OUT CREG, AL
 
-	INITIALIZE:
-		MOV DX, OFFSET [INITIALIZE]
-		MOV START_IP, DX		
-		MOV AL, 00h
-		OUT PORTB, AL ; reset port b
-
 	; check if start button is ON(Active Low)
 	START: 
+		MOV AL, 00h
+		OUT PORTB, AL 
 		MOV MODE, 00h
 		IN AL, PORTA
 		CMP AL, 11111110b
@@ -163,7 +158,10 @@ ENDM
 		OUT PORTB, AL
 		OUT PORTC, AL
 		POP AX ; pop previous IP address location
-		PUSH START_IP ; moves instruction address to INITIALIZE label
+		POP AX ; pop previous CS address location
+		PUSH CS ; push CS address
+		MOV DX, OFFSET [START]
+		PUSH DX ; moves IP address to START label
 		IRET
 
 .exit
