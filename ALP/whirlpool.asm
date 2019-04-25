@@ -171,7 +171,7 @@ ENDM
 ; introduce delay in the system - DURATION held in CX register
 DELAY PROC NEAR USES BX DX
 	L0:
-		MOV BX, 0001h
+		MOV BX, 00E0h
 	L1:
 		MOV DX, 0FFFFh
 	L2:
